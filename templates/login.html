@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VARTOCHAT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: system-ui, sans-serif; }</style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-zinc-900 rounded-3xl overflow-hidden shadow-2xl">
+        <div class="bg-emerald-600 p-10 text-center">
+            <h1 class="text-5xl font-bold">VARTOCHAT</h1>
+        </div>
+
+        <div id="notification" class="hidden px-6 py-4 text-center text-sm font-medium"></div>
+
+        <div class="flex border-b border-zinc-700">
+            <button onclick="switchTab(0)" id="tab0" class="flex-1 py-5 font-semibold border-b-2 border-emerald-500 text-emerald-500">Вход</button>
+            <button onclick="switchTab(1)" id="tab1" class="flex-1 py-5 font-semibold text-zinc-400">Регистрация</button>
+        </div>
+
+        <!-- ВХОД -->
+        <div id="panel-login" class="p-8">
+            <form action="/login" method="POST" class="space-y-6">
+                <input type="tel" name="phone" placeholder="+7 900 123 45 67" class="w-full bg-zinc-800 rounded-2xl px-6 py-5 text-lg" required>
+                <input type="password" name="password" placeholder="Пароль" class="w-full bg-zinc-800 rounded-2xl px-6 py-5 text-lg" required>
+                <button type="submit" class="w-full bg-emerald-600 py-4 rounded-2xl text-lg font-semibold hover:bg-emerald-700 transition">Войти</button>
+            </form>
+        </div>
+
+        <!-- РЕГИСТРАЦИЯ -->
+        <div id="panel-register" class="p-8 hidden">
+            <div id="step1">
+                <input id="reg-phone" placeholder="+7 900 123 45 67" class="w-full bg-zinc-800 rounded-2xl px-6 py-5 mb-4">
+                <input id="reg-name" placeholder="Ваше имя" class="w-full bg-zinc-800 rounded-2xl px-6 py-5 mb-4">
+                <div class="relative">
+                    <input id="reg-username" placeholder="@username" maxlength="30" class="w-full bg-zinc-800 rounded-2xl px-6 py-5 mb-2">
+                    <p id="username-hint" class="text-xs text-zinc-500 px-2">Должен начинаться с @, только английские буквы, цифры и _ (мин. 4 символа)</p>
+                </div>
+                <button onclick="sendCode()" class="w-full bg-emerald-600 py-4 rounded-2xl text-lg font-semibold mt-4">Получить код в терминал</button>
+            </div>
+
+            <div id="step2" class="hidden">
+                <input id="reg-code" maxlength="6" placeholder="123456" class="w-full bg-zinc-800 rounded-2xl px-6 py-5 mb-4 text-center text-3xl tracking-widest">
+                <input id="reg-password" type="password" placeholder="Придумай пароль" class="w-full bg-zinc-800 rounded-2xl px-6 py-5 mb-6">
+                <button onclick="finishRegister()" class="w-full bg-emerald-600 py-4 rounded-2xl text-lg font-semibold">Завершить регистрацию</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let regPhone = '';
+
+        function showNotification(text, isError = true) {
+            const n = document.getElementById('notification');
+            n.textContent = text;
+            n.className = `px-6 py-4 text-center text-sm font-medium ${isError ? 'bg-red-600' : 'bg-emerald-600'}`;
+            n.classList.remove('hidden');
+            setTimeout(() => n.classList.add('hidden'), 4000);
+        }
+
+        function switchTab(n) {
+            document.getElementById('panel-login').classList.toggle('hidden', n === 1);
+            document.getElementById('panel-register').classList.toggle('hidden', n === 0);
+            document.getElementById('tab0').classList.toggle('border-b-2', n === 0);
+            document.getElementById('tab0').classList.toggle('text-emerald-500', n === 0);
+            document.getElementById('tab1').classList.toggle('border-b-2', n === 1);
+            document.getElementById('tab1').classList.toggle('text-emerald-500', n === 1);
+        }
+
+        // Валидация username в реальном времени
+        document.getElementById('reg-username').addEventListener('input', function() {
+            const val = this.value.trim();
+            const hint = document.getElementById('username-hint');
+            if (val === '') {
+                hint.textContent = 'Должен начинаться с @, только английские буквы, цифры и _ (мин. 4 символа)';
+                hint.className = 'text-xs text-zinc-500 px-2';
+                return;
+            }
+            if (!val.startsWith('@')) {
+                hint.textContent = '❌ Должен начинаться с @';
+                hint.className = 'text-xs text-red-500 px-2';
+            } else if (val.length < 5) {
+                hint.textContent = '❌ Минимум 4 символа после @';
+                hint.className = 'text-xs text-red-500 px-2';
+            } else if (!/^[a-zA-Z]/.test(val.slice(1))) {
+                hint.textContent = '❌ После @ не может начинаться с цифры';
+                hint.className = 'text-xs text-red-500 px-2';
+            } else if (!/^[a-zA-Z0-9_@]+$/.test(val)) {
+                hint.textContent = '❌ Только английские буквы, цифры и _';
+                hint.className = 'text-xs text-red-500 px-2';
+            } else {
+                hint.textContent = '✅ Отлично!';
+                hint.className = 'text-xs text-emerald-500 px-2';
+            }
+        });
+
+        function sendCode() {
+            const phone = document.getElementById('reg-phone').value.trim();
+            const name = document.getElementById('reg-name').value.trim();
+            const username = document.getElementById('reg-username').value.trim();
+
+            if (!phone || !name || !username) return showNotification('Заполните все поля');
+            if (!username.startsWith('@') || username.length < 5) return showNotification('Некорректный username');
+
+            regPhone = phone;
+            fetch('/register_step1', {
+                method: 'POST',
+                body: new URLSearchParams({phone, name, username})
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    document.getElementById('step1').classList.add('hidden');
+                    document.getElementById('step2').classList.remove('hidden');
+                } else showNotification(data.error || 'Ошибка');
+            });
+        }
+
+        function finishRegister() {
+            const code = document.getElementById('reg-code').value.trim();
+            const password = document.getElementById('reg-password').value.trim();
+            if (!code || !password) return showNotification('Введите код и пароль');
+
+            fetch('/register_step2', {
+                method: 'POST',
+                body: new URLSearchParams({phone: regPhone, code, password})
+            }).then(r => r.json()).then(data => {
+                if (data.success) window.location.href = '/';
+                else showNotification(data.error || 'Ошибка');
+            });
+        }
+
+        switchTab(0);
+    </script>
+</body>
+</html>
